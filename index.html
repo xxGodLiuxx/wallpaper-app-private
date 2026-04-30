@@ -563,7 +563,7 @@ function applyTheme(theme) {
 function loadTheme() {
   let t = null;
   if (ls) try { t = ls.getItem(STORAGE_THEME); } catch {}
-  if (!t) t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  if (!t) t = 'dark'; // theme-auto-default v1 - default dark
   applyTheme(t);
 }
 
@@ -833,11 +833,16 @@ window.addEventListener('resize', () => {
   __resizeTimer = setTimeout(fitQuoteText, 120);
 });
 
-// Auto: URL param > saved state > default off
+// Auto: URL param > saved state > default ON  // theme-auto-default v1
 const queryAuto = initAutoFromQuery();
-let initialAuto = false;
+let initialAuto = true; // default ON
 if (queryAuto !== null) initialAuto = queryAuto;
-else if (ls) try { initialAuto = ls.getItem(STORAGE_AUTO) === '1'; } catch {}
+else if (ls) {
+  try {
+    const savedAuto = ls.getItem(STORAGE_AUTO);
+    if (savedAuto !== null) initialAuto = savedAuto === '1';
+  } catch {}
+}
 if (initialAuto) setAutoEnabled(true, false);
 
 document.getElementById('uiHideToggle').addEventListener('click', (e) => {
