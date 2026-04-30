@@ -453,20 +453,7 @@ body.ui-hidden .ui-hide-toggle {
         <div class="progress-bar-single" id="progressBar"></div>
       </div>
 
-      <div class="actions">
-    <button class="btn" id="btnNext" type="button">
-      <span class="label">次 へ</span>
-      <span class="sublabel">next</span>
-    </button>
-    <button class="btn btn-fav" id="btnFav" type="button">
-      <span class="label">お気に入り</span>
-      <span class="sublabel">favorite</span>
-    </button>
-    <button class="btn" id="btnCopy" type="button">
-      <span class="label">コ ピ ー</span>
-      <span class="sublabel">copy</span>
-    </button>
-  </div>
+      <!-- bottom-buttons-removal v1: 3 unused buttons (next/favorite/copy) deleted -->
     </div>
   </div>
 
@@ -563,7 +550,7 @@ function applyTheme(theme) {
 function loadTheme() {
   let t = null;
   if (ls) try { t = ls.getItem(STORAGE_THEME); } catch {}
-  if (!t) t = 'dark'; // theme-auto-default v1 - default dark
+  if (!t) t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
   applyTheme(t);
 }
 
@@ -616,7 +603,8 @@ function fitQuoteText() {
 
   const isCompact = document.body.classList.contains('compact');
   const minSize = isCompact ? 26 : 36;
-  const maxSize = isCompact ? 44 : 96;
+  // size-cap-down v1: max cap reduced (96→80 desktop, 44→38 compact) for long quotes
+  const maxSize = isCompact ? 38 : 80;
 
   const cs = getComputedStyle(stage);
   const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
@@ -651,13 +639,11 @@ function renderQuote(idx, withFade) {
     authorEl.textContent = q.author || '';
     authorEl.style.display = q.author ? '' : 'none';
     bookEl.textContent = q.book ? `『${q.book}』` : '';
-    const btnFav = document.getElementById('btnFav');
+    // bottom-buttons-removal v1: btnFav class toggle removed (button no longer exists)
     const favMark = document.getElementById('favMark');
     if (favorites.has(q.id)) {
-      btnFav.classList.add('active');
       favMark.classList.add('shown');
     } else {
-      btnFav.classList.remove('active');
       favMark.classList.remove('shown');
     }
     fitQuoteText();
@@ -753,48 +739,8 @@ document.addEventListener('visibilitychange', () => {
   else if (autoEnabled) scheduleAuto();
 });
 
-document.getElementById('btnNext').addEventListener('click', (e) => {
-  e.stopPropagation();
-  nextQuote();
-});
-
-document.getElementById('btnFav').addEventListener('click', (e) => {
-  e.stopPropagation();
-  if (currentIdx < 0) return;
-  const q = QUOTES[currentIdx];
-  if (favorites.has(q.id)) {
-    favorites.delete(q.id);
-    showToast('お気に入りから外しました');
-  } else {
-    favorites.add(q.id);
-    showToast('お気に入りに登録しました');
-  }
-  saveFavs();
-  renderQuote(currentIdx, false);
-  if (autoEnabled) scheduleAuto(); // reset timer so user has time after interacting
-});
-
-document.getElementById('btnCopy').addEventListener('click', async (e) => {
-  e.stopPropagation();
-  if (currentIdx < 0) return;
-  const q = QUOTES[currentIdx];
-  const parts = [q.text];
-  if (q.author) parts.push(`― ${q.author}`);
-  if (q.book) parts.push(`『${q.book}』`);
-  const text = parts.join('\n');
-  try {
-    await navigator.clipboard.writeText(text);
-    showToast('コピーしました');
-  } catch {
-    const ta = document.createElement('textarea');
-    ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-1000px';
-    document.body.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); showToast('コピーしました'); }
-    catch { showToast('コピーできませんでした'); }
-    finally { ta.remove(); }
-  }
-  if (autoEnabled) scheduleAuto(); // reset timer
-});
+// bottom-buttons-removal v1: btnNext/btnFav/btnCopy click handlers removed
+// (buttons no longer exist in DOM; favorites/copy still accessible via stage tap and keyboard)
 
 // Stage tap = next (gaze-friendly bonus area)
 document.getElementById('stage').addEventListener('click', (e) => {
@@ -806,8 +752,7 @@ document.getElementById('stage').addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); nextQuote(); }
-  else if (e.key === 'f' || e.key === 'F') { document.getElementById('btnFav').click(); }
-  else if (e.key === 'c' || e.key === 'C') { document.getElementById('btnCopy').click(); }
+  // bottom-buttons-removal v1: f/F (favorite) and c/C (copy) shortcuts removed
   else if (e.key === 't' || e.key === 'T') { document.getElementById('themeToggle').click(); }
   else if (e.key === 'u' || e.key === 'U') { setUIHidden(!document.body.classList.contains('ui-hidden'), true); }
 });
@@ -833,16 +778,11 @@ window.addEventListener('resize', () => {
   __resizeTimer = setTimeout(fitQuoteText, 120);
 });
 
-// Auto: URL param > saved state > default ON  // theme-auto-default v1
+// Auto: URL param > saved state > default off
 const queryAuto = initAutoFromQuery();
-let initialAuto = true; // default ON
+let initialAuto = false;
 if (queryAuto !== null) initialAuto = queryAuto;
-else if (ls) {
-  try {
-    const savedAuto = ls.getItem(STORAGE_AUTO);
-    if (savedAuto !== null) initialAuto = savedAuto === '1';
-  } catch {}
-}
+else if (ls) try { initialAuto = ls.getItem(STORAGE_AUTO) === '1'; } catch {}
 if (initialAuto) setAutoEnabled(true, false);
 
 document.getElementById('uiHideToggle').addEventListener('click', (e) => {
